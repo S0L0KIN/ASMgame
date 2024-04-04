@@ -39,7 +39,7 @@
 .eqv PLAYER_SPEED 1
 .eqv GRAVITY 1
 .eqv TURTLE_SPEED 1
-.eqv DRIP_SPEED   3
+.eqv DRIP_SPEED   1
 
 # colours
 .eqv EMPTY_HEART 0x533a20 
@@ -67,8 +67,8 @@
 MAIN_POS:	.word 6, 7   	# characters position, operating on coord grid (x, y): x,y in [0, 63] (6,7)
 MAIN_HEALTH:	.word 3		# begin with 3 hp
 
-TURTLE1_POS:	.word 17, 21, 1	# start moving right (use 3rd variable 4=right -4=left) (17,21,1)
-TURTLE2_POS: 	.word 50, 47, 1	# same as above
+TURTLE1_POS:	.word 17, 21, 1	# start moving right (use 3rd variable 1=right -1=left) (17,21,1)
+TURTLE2_POS: 	.word 50, 47, -1	# same as above
 
 DRIP_POS:	.word 16, 28 	# track drips (SINCE ALL ARE IN A LINE, ONLY NEED 1 COORD) change to actual pos before implement
 DRIP_TIMER:	.word 0
@@ -105,30 +105,14 @@ loop:
 	jal grav
 	jal handle_input
 	jal move_enemies
-	
-	la $t0, DRIP_TIMER #same for drip
-	lw $t1, 0($t0)
-	addi $t1, $t1, 40
-	sw $t1, 0($t0)
-	#bgt $t1 1400 move_acid
-	
-	la $t0, DRIP_POS
-	lw $t1, 4($t0)
-	#beq
-	
-	
+	jal handle_acid
 	
 	jal draw_player
 	jal draw_turtle1
 	jal draw_turtle2
 	jal draw_acid
 	
-	#DO SAME FOR DRIPS, TURTLE
 	
-	#THIS WILL WORK LIKE
-	#remove player, check input, move player
-		# left right standard, if down then down (no air strafing)
-	#remove enemies, update enemies, move enemies
 	#check collision on all enemies
 		# if collision, play death animation
 		# decrement health, gray heart
@@ -248,11 +232,44 @@ grav:
 	jr $ra
 
 restart:
+	la $t0, MAIN_POS
+	li $t1, 6
+	sw $t1, 0($t0)
 	
+	li $t1, 7
+	sw $t1, 4($t0)
 	
-	#change all variables to default
+	la $t0, MAIN_HEALTH
+	li $t1, 3
+	sw $t1, 0($t0)
 	
-	# j main redraw everything (cause sometimes clippy stuff wants to be fixed)
+	la $t0, TURTLE1_POS
+	li $t1, 17
+	sw $t1, 0($t0)
+	li $t1, 21
+	sw $t1, 4($t0)
+	li $t1, 1
+	sw $t1, 8($t0)
+	
+	la $t0, TURTLE2_POS
+	li $t1, 50
+	sw $t1, 0($t0)
+	li $t1, 47
+	sw $t1, 4($t0)
+	li $t1, -1
+	sw $t1, 8($t0)
+	
+	la $t0, DRIP_POS
+	li $t1, 16
+	sw $t1, 0($t0)
+	li $t1, 28
+	sw $t1, 4($t0)
+	
+	la $t0, DRIP_TIMER
+	li $t1, 0
+	sw $t1, 0($t0)
+
+	j main
 	
 move_enemies:
 	la $t1, TURTLE1_POS
@@ -265,7 +282,6 @@ move_enemies:
 	beq $t2, 60, change_turtle1 
 	beq $t2, 15, change_turtle2 
 	j move_turtle2	
-	
 	
 change_turtle1:
 	li $t3 -1
@@ -299,8 +315,40 @@ change_turtle4:
 	sw $t3 8($t1)
 	jr $ra
 	
+handle_acid:
+	la $t0, DRIP_TIMER #same for drip
+	lw $t1, 0($t0)
+	addi $t1, $t1, 40 #increment by 40
+	sw $t1, 0($t0)
+	bgt $t1 2000 move_acid #if been 1 second start drip
+	
+	la $t0, DRIP_POS
+	lw $t1, 4($t0)
+	bgt $t1, 28, move_acid
+	
+	jr $ra # go back no moving needed
+	
+move_acid:
+	la $t0, DRIP_POS
+	lw $t1, 4($t0)
+	add $t1, $t1 1 #move down 1
+	
+	bgt $t1 35, reset_drip
+	sw $t1, 4($t0)
+	
+	la $t0, DRIP_TIMER
+	li $t1, 0
+	sw $t1, 0($t0)
+	
 	
 	jr $ra
+
+reset_drip:
+	li $t1, 28
+	sw $t1, 4($t0)
+	
+	jr $ra
+
 #player drawing
 draw_player:
 	la $t0, BASE_ADDRESS #framebuffer
@@ -514,11 +562,11 @@ draw_holes:
 	sw $t2, 0($t4)
 	add $t4, $t4, 256
 	sw $t2, 0($t4)
-	add $t4, $t4, 3264
+	add $t4, $t4, 3256
 	sw $t2, 0($t4)
 	add $t4, $t4, 256
 	sw $t2, 0($t4)
-	add $t4, $t4, 2876
+	add $t4, $t4, 2888
 	sw $t2, 0($t4)
 	add $t4, $t4, 256
 	sw $t2, 0($t4)
