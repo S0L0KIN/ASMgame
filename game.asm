@@ -67,8 +67,8 @@
 MAIN_POS:	.word 6, 7   	# characters position, operating on coord grid (x, y): x,y in [0, 63] (6,7)
 MAIN_HEALTH:	.word 3		# begin with 3 hp
 
-TURTLE1_POS:	.word 17, 21, 4	# start moving right (use 3rd variable 4=right -4=left) (17,21,1)
-TURTLE2_POS: 	.word 50, 47, 4	# same as above
+TURTLE1_POS:	.word 17, 21, 1	# start moving right (use 3rd variable 4=right -4=left) (17,21,1)
+TURTLE2_POS: 	.word 50, 47, 1	# same as above
 
 DRIP_POS:	.word 16, 28 	# track drips (SINCE ALL ARE IN A LINE, ONLY NEED 1 COORD) change to actual pos before implement
 DRIP_TIMER:	.word 0
@@ -101,16 +101,29 @@ loop:
 	jal draw_acid
 	li $a0, 0 #RESET HARD CHECK FOR THIS CLOCK CYCLE
 
-	jal handle_input
+	
 	jal grav
-	#move enemies
+	jal handle_input
+	jal move_enemies
+	
+	la $t0, DRIP_TIMER #same for drip
+	lw $t1, 0($t0)
+	addi $t1, $t1, 40
+	sw $t1, 0($t0)
+	#bgt $t1 1400 move_acid
+	
+	la $t0, DRIP_POS
+	lw $t1, 4($t0)
+	#beq
+	
+	
 	
 	jal draw_player
 	jal draw_turtle1
 	jal draw_turtle2
 	jal draw_acid
 	
-	#DO SAME FOR DRIPS, TURTLE, DRAGON
+	#DO SAME FOR DRIPS, TURTLE
 	
 	#THIS WILL WORK LIKE
 	#remove player, check input, move player
@@ -118,21 +131,16 @@ loop:
 	#remove enemies, update enemies, move enemies
 	#check collision on all enemies
 		# if collision, play death animation
-		# decrement health
-		# if 0 game over screen, else restart at top (RESET .data, call loop again)
-	#check collision on gold
-		# if collision, victory screen
+		# decrement health, gray heart
+		# if 0 game over screen, else restart at top (RESET .data, call loop again) maybe check on top of game loop??
+	#check y > 57 for victory screen
+		
 		
 		
 sleep:
 	li $v0, 32 #MARS instruction for sleep
 	li $a0, 40 #sleep for 40ms
 	syscall
-	
-	la $t0, DRIP_TIMER #same for drip
-	lw $t1, 0($t0)
-	addi $t1, $t1, 40
-	sw $t1, 0($t0)
 
 	j loop #restart loop
 
@@ -224,7 +232,7 @@ grav:
 	add $t1, $t1, $t3 #base+x + y
 	add $t1, $t1, 768 #want just right of player
 	
-	lw $t4, 0($t1) #CHECK ALL 5 PIXELS RIGHT OF PLAYER
+	lw $t4, 0($t1) 
 	beq $t4, EDGE, return
 	lb $t4, 4($t1)
 	beq $t4, EDGE, return
@@ -246,7 +254,53 @@ restart:
 	
 	# j main redraw everything (cause sometimes clippy stuff wants to be fixed)
 	
+move_enemies:
+	la $t1, TURTLE1_POS
+	lw $t2, 0($t1) #check x value
+	lw $t3, 8($t1)
+	add $t2, $t2, $t3 #add + x
+	sw $t2, 0($t1)
+	
+	#check if need to change direction
+	beq $t2, 60, change_turtle1 
+	beq $t2, 15, change_turtle2 
+	j move_turtle2	
+	
+	
+change_turtle1:
+	li $t3 -1
+	sw $t3 8($t1)
+	j move_turtle2
+	
+change_turtle2:
+	li $t3 1
+	sw $t3 8($t1)
+	j move_turtle2
 
+move_turtle2:
+	la $t1, TURTLE2_POS
+	lw $t2, 0($t1) #check x value
+	lw $t3, 8($t1)
+	add $t2, $t2, $t3 #add + x
+	sw $t2, 0($t1)
+	
+	#check if need to change direction
+	beq $t2, 60, change_turtle3 
+	beq $t2, 12, change_turtle4 
+	jr $ra
+	
+change_turtle3:
+	li $t3 -1
+	sw $t3 8($t1)
+	jr $ra
+	
+change_turtle4:
+	li $t3 1
+	sw $t3 8($t1)
+	jr $ra
+	
+	
+	jr $ra
 #player drawing
 draw_player:
 	la $t0, BASE_ADDRESS #framebuffer
