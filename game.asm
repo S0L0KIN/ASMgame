@@ -112,6 +112,8 @@ loop:
 	jal draw_turtle2
 	jal draw_acid
 	
+	jal check_collision
+	
 	
 	#check collision on all enemies
 		# if collision, play death animation
@@ -119,14 +121,118 @@ loop:
 		# if 0 game over screen, else restart at top (RESET .data, call loop again) maybe check on top of game loop??
 	#check y > 57 for victory screen
 		
-		
-		
 sleep:
 	li $v0, 32 #MARS instruction for sleep
 	li $a0, 40 #sleep for 40ms
 	syscall
 
 	j loop #restart loop
+
+check_collision:
+	la $t0 BASE_ADDRESS
+	la $t1, MAIN_POS #player in memory
+	lw $t2, 0($t1) #get x in t2
+	lw $t3, 4($t1)
+	#get exact pixel location
+	sll $t2, $t2, 2 # actual x = stored x * 4 
+	sll $t3, $t3, 8 # actual y = stored y * (2^8)
+	add $t1, $t0, $t2 #base + x
+	add $t1, $t1, $t3 #base+x + y
+	
+	lw $t4, 0($t1) #collision checks (ALL PIXELS)
+	beq $t4 TURTLE1_GREEN spike1_death
+	beq $t4 TURTLE2_GREEN spike2_death
+	beq $t4 ACID_GREEN acid_death
+	lw $t4, 4($t1)
+	beq $t4 TURTLE1_GREEN spike1_death
+	beq $t4 TURTLE2_GREEN spike2_death
+	beq $t4 ACID_GREEN acid_death
+	lw $t4, -4($t1)
+	beq $t4 TURTLE1_GREEN spike1_death
+	beq $t4 TURTLE2_GREEN spike2_death
+	beq $t4 ACID_GREEN acid_death
+	lw $t4, -256($t1)
+	beq $t4 TURTLE1_GREEN spike1_death
+	beq $t4 TURTLE2_GREEN spike2_death
+	beq $t4 ACID_GREEN acid_death
+	lw $t4, -512($t1)
+	beq $t4 TURTLE1_GREEN spike1_death
+	beq $t4 TURTLE2_GREEN spike2_death
+	beq $t4 ACID_GREEN acid_death
+	lw $t4, 256($t1)
+	beq $t4 TURTLE1_GREEN spike1_death
+	beq $t4 TURTLE2_GREEN spike2_death
+	beq $t4 ACID_GREEN acid_death
+	lw $t4, 252($t1)
+	beq $t4 TURTLE1_GREEN spike1_death
+	beq $t4 TURTLE2_GREEN spike2_death
+	beq $t4 ACID_GREEN acid_death
+	lw $t4, 260($t1)
+	beq $t4 TURTLE1_GREEN spike1_death
+	beq $t4 TURTLE2_GREEN spike2_death
+	beq $t4 ACID_GREEN acid_death
+	lw $t4, 516($t1)
+	beq $t4 TURTLE1_GREEN spike1_death
+	beq $t4 TURTLE2_GREEN spike2_death
+	beq $t4 ACID_GREEN acid_death
+	lw $t4, 508($t1)
+	beq $t4 TURTLE1_GREEN spike1_death
+	beq $t4 TURTLE2_GREEN spike2_death
+	beq $t4 ACID_GREEN acid_death
+	jr $ra
+	
+spike1_death:
+	
+	j lose_heart
+
+
+
+spike2_death:
+
+	j  start_state
+
+acid_death:	
+	li $a0 2
+	jal draw_player
+	j lose_heart	
+
+lose_heart:
+	la $t0 MAIN_HEALTH
+	lw $t1 0($t0)
+	add $t1 $t1 -1
+	
+	li $v0, 32 #MARS instruction for sleep
+	li $a0, 1000 #sleep for 1s
+	syscall
+	
+	beq $t1 0 draw_lose
+	sw $t1, 0($t0)
+	
+	
+	# REMOVE A HEART
+	la $t0 BASE_ADDRESS
+	li $t2, HEALTH_LOC #health in memory
+	mul $t3, $t1, 16
+	add $t1, $t0, $t3
+	add $t1, $t1, $t2
+	
+	li $t2, EMPTY_HEART
+	sw $t2, 0($t1)
+	sw $t2, 256($t1)
+	sw $t2, 4($t1)
+	sw $t2, -252($t1)
+	sw $t2, -260($t1)
+	sw $t2, -4($t1)
+	
+	
+	li $a0, 1
+	jal draw_player
+	jal draw_turtle1
+	jal draw_turtle2
+	jal draw_acid
+	li $a0, 0
+	j start_state
+
 
 handle_input:
 	li $t9, 0xffff0000
@@ -232,16 +338,18 @@ grav:
 	jr $ra
 
 restart:
+	la $t0, MAIN_HEALTH
+	li $t1, 3
+	sw $t1, 0($t0)
+	j start_state
+
+start_state:
 	la $t0, MAIN_POS
 	li $t1, 6
 	sw $t1, 0($t0)
 	
 	li $t1, 7
 	sw $t1, 4($t0)
-	
-	la $t0, MAIN_HEALTH
-	li $t1, 3
-	sw $t1, 0($t0)
 	
 	la $t0, TURTLE1_POS
 	li $t1, 17
@@ -268,8 +376,7 @@ restart:
 	la $t0, DRIP_TIMER
 	li $t1, 0
 	sw $t1, 0($t0)
-
-	j main
+	j loop
 	
 move_enemies:
 	la $t1, TURTLE1_POS
@@ -553,7 +660,7 @@ ready_holes:
 	li $t2, BACK
 	li $t1, 2724
 draw_holes:
-	bgt $t1, 2752, ready_hearts
+	bgt $t1, 2752, draw_stala
 	add $t4, $t0, $t1
 	sw $t2, 0($t4)
 	add $t4, $t4, 256
@@ -573,25 +680,6 @@ draw_holes:
 	
 	addi $t1, $t1, 4
 	j draw_holes
-	
-ready_hearts:
-	li $t2 RED
-	li $t1 0
-	li $t3 HEALTH_LOC
-draw_hearts:
-	bgt $t1 2 draw_stala
-	add $t4 $t0 $t3
-	
-	sw $t2 0($t4)
-	sw $t2 -4($t4)
-	sw $t2 -260($t4)
-	sw $t2 -252($t4)
-	sw $t2 4($t4)
-	sw $t2 256($t4)
-	
-	addi $t3 $t3 16
-	addi $t1 $t1 1
-	j draw_hearts
 
 draw_stala: #grey spikes
 	li $t2 STALA
@@ -639,9 +727,32 @@ draw_gold: #TO BE COMPLETED!! just remember victory pixel is (40 , 60)
 	sw $t2 256($t1)
 	sw $t2 512($t1)
 	
+ready_hearts:
+	li $t2 RED
+	li $t1 0
+	li $t3 HEALTH_LOC
+draw_hearts:
+	bgt $t1 2 return
+	add $t4 $t0 $t3
+
+	sw $t2 0($t4)
+	sw $t2 -4($t4)
+	sw $t2 -260($t4)
+	sw $t2 -252($t4)
+	sw $t2 4($t4)
+	sw $t2 256($t4)
+
+	addi $t3 $t3 16
+	addi $t1 $t1 1
+	j draw_hearts
+	
 return:
 	jr $ra
 	
 exit:
 	li $v0, 10 # exit program
 	syscall
+	
+draw_win:
+draw_lose:
+	j exit
