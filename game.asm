@@ -3,7 +3,7 @@
 # CSCB58 Winter 2024 Assembly Final Project
 # University of Toronto, Scarborough
 #
-# Student: Nikolos Zegas-Tepper, 1009196503, tepperni, nikolos.zegastepper@mail.utoronto.ca
+# Student: Nikolos Zegas-Tepper, **** , ****, ****
 #
 # Bitmap Display Configuration:
 # - Unit width in pixels: 4
@@ -393,6 +393,7 @@ restart:
 	la $t0, MAIN_HEALTH
 	li $t1, 3
 	sw $t1, 0($t0)
+	jal ready_hearts
 	j start_state
 
 start_state:
@@ -904,6 +905,7 @@ draw_gold: #TO BE COMPLETED!! just remember victory pixel is (40 , 60)
 	
 	
 ready_hearts:
+	li $t0 BASE_ADDRESS
 	li $t2 RED
 	li $t1 0
 	li $t3 HEALTH_LOC
@@ -930,14 +932,16 @@ exit:
 	syscall
 	
 wait_restart:
+	li $v0, 32 #MARS instruction for sleep
+	li $a0, 40 #sleep for 40ms
+	syscall
+	
+	li $t2, 0
 	li $t9, 0xffff0000
 	lw $t2, 4($t9) # this assumes $t9 is set to 0xfff0000 from before
 	beq $t2, 114, set_restart #r
 	beq $t2, 113, exit
 	
-	li $v0, 32 #MARS instruction for sleep
-	li $a0, 40 #sleep for 40ms
-	syscall
 	j wait_restart
 
 set_restart:
@@ -5047,6 +5051,7 @@ draw_win:
         sw $t1, 16380($t0)
 	j wait_restart
 draw_lose:
+
         la $t0, BASE_ADDRESS
         li $t1, 0x702e0e
         li $t2, 0xbc5a2a
