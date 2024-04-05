@@ -81,7 +81,6 @@ DRIP_TIMER:	.word 0
 #    - HARD BOUNDARIES (edges)
 # - COLLISION BETWEEN THEM AND PLAYER
 #    - DAMAGE
-# - RESTART
 # - victory / loss screen?
 
 
@@ -113,12 +112,9 @@ loop:
 	jal draw_acid
 	
 	jal check_collision
+	jal check_win
 	
 	
-	#check collision on all enemies
-		# if collision, play death animation
-		# decrement health, gray heart
-		# if 0 game over screen, else restart at top (RESET .data, call loop again) maybe check on top of game loop??
 	#check y > 57 for victory screen
 		
 sleep:
@@ -127,6 +123,16 @@ sleep:
 	syscall
 
 	j loop #restart loop
+
+check_win:
+	la $t0 MAIN_POS
+	lw $t1 4($t0) #get y position
+	bgt $t1 57 check_win2 
+	jr $ra
+check_win2:
+	lw $t1 0($t0)
+	bgt $t1 20 draw_win
+	jr $ra
 
 check_collision:
 	la $t0 BASE_ADDRESS
@@ -182,14 +188,64 @@ check_collision:
 	jr $ra
 	
 spike1_death:
+	la $t0, BASE_ADDRESS #framebuffer
+	la $t1, TURTLE1_POS #player in memory
+	lw $t2, 0($t1) #get x in t2
+	lw $t3, 4($t1) #get y in t3
+
+	#get exact pixel location
+	sll $t2, $t2, 2 # actual x = stored x * 4 
+	sll $t3, $t3, 8 # actual y = stored y * (2^8)
+	add $t1, $t0, $t2 #base + x
+	add $t1, $t1, $t3 #base+x + y
+	
+	li $t2, TURTLE_SPIKE
+	
+	sw $t2, 12($t1)
+	sw $t2, 16($t1)
+	sw $t2, -512($t1)
+	sw $t2, -768($t1)
+	sw $t2, -1024($t1)
+	sw $t2, -504($t1)
+	sw $t2, -520($t1)
+	sw $t2, -756($t1)
+	sw $t2, -780($t1)
+	sw $t2, -12($t1)
+	sw $t2, -16($t1)
+	
+	j  lose_heart
+	
 	
 	j lose_heart
 
-
-
 spike2_death:
+	la $t0, BASE_ADDRESS #framebuffer
+	la $t1, TURTLE2_POS #player in memory
+	lw $t2, 0($t1) #get x in t2
+	lw $t3, 4($t1) #get y in t3
 
-	j  start_state
+	#get exact pixel location
+	sll $t2, $t2, 2 # actual x = stored x * 4 
+	sll $t3, $t3, 8 # actual y = stored y * (2^8)
+	add $t1, $t0, $t2 #base + x
+	add $t1, $t1, $t3 #base+x + y
+	
+	li $t2, TURTLE_SPIKE
+	
+	sw $t2, 12($t1)
+	sw $t2, 16($t1)
+	sw $t2, -512($t1)
+	sw $t2, -768($t1)
+	sw $t2, -1024($t1)
+	sw $t2, -504($t1)
+	sw $t2, -520($t1)
+	sw $t2, -756($t1)
+	sw $t2, -780($t1)
+	sw $t2, -12($t1)
+	sw $t2, -16($t1)
+	
+	
+	j  lose_heart
 
 acid_death:	
 	li $a0 2
@@ -212,7 +268,7 @@ lose_heart:
 	# REMOVE A HEART
 	la $t0 BASE_ADDRESS
 	li $t2, HEALTH_LOC #health in memory
-	mul $t3, $t1, 16
+	mul $t3, $t1, 16 #increment by amt of health*offset of each (16)
 	add $t1, $t0, $t3
 	add $t1, $t1, $t2
 	
@@ -226,11 +282,13 @@ lose_heart:
 	
 	
 	li $a0, 1
+	li $a1, 1
 	jal draw_player
 	jal draw_turtle1
 	jal draw_turtle2
 	jal draw_acid
 	li $a0, 0
+	li $a1, 0
 	j start_state
 
 
@@ -409,7 +467,7 @@ move_turtle2:
 	
 	#check if need to change direction
 	beq $t2, 60, change_turtle3 
-	beq $t2, 12, change_turtle4 
+	beq $t2, 14, change_turtle4 
 	jr $ra
 	
 change_turtle3:
@@ -560,8 +618,23 @@ render_turtle:
 	sw $t3, 260($t1)
 	sw $t3, 252($t1)
 	
+	beq $a1, 1, clear_spikes #SET $a1 to 1 if clear spikes
 	jr $ra
-	
+
+clear_spikes:
+	sw $t2, 12($t1)
+	sw $t2, 16($t1)
+	sw $t2, -512($t1)
+	sw $t2, -768($t1)
+	sw $t2, -1024($t1)
+	sw $t2, -504($t1)
+	sw $t2, -520($t1)
+	sw $t2, -756($t1)
+	sw $t2, -780($t1)
+	sw $t2, -12($t1)
+	sw $t2, -16($t1)
+	jr $ra
+
 draw_acid:
 	la $t0, BASE_ADDRESS #framebuffer
 	la $t1, DRIP_POS #player in memory
@@ -754,5 +827,6 @@ exit:
 	syscall
 	
 draw_win:
+	j exit
 draw_lose:
 	j exit
